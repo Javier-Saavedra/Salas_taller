@@ -81,4 +81,54 @@ class IngresoController {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function obtenerIngresosPorFiltro($filtro = 'hoy') {
+        $db = (new Database())->getConnection();
+        
+        // Definir la consulta base
+        $baseQuery = "SELECT 
+                        i.codigoEstudiante,
+                        i.nombreEstudiante,
+                        p.nombre as programa,
+                        s.nombre as sala,
+                        r.nombre as responsable,
+                        i.fechaIngreso,
+                        i.horaIngreso,
+                        i.horaSalida
+                    FROM ingresos i
+                    LEFT JOIN programas p ON i.idPrograma = p.id
+                    LEFT JOIN salas s ON i.idSala = s.id
+                    LEFT JOIN responsables r ON i.idResponsable = r.id";
+        
+        switch($filtro) {
+            case 'ayer':
+                $fecha = date('Y-m-d', strtotime('-1 day'));
+                $titulo = "Ingresos de Ayer";
+                $query = $baseQuery . " WHERE DATE(i.fechaIngreso) = :fecha
+                        ORDER BY i.horaIngreso DESC";
+                break;
+            case 'semana':
+                $fecha = date('Y-m-d', strtotime('-7 days'));
+                $titulo = "Ingresos de la Última Semana";
+                $query = $baseQuery . " WHERE i.fechaIngreso >= :fecha
+                        ORDER BY i.fechaIngreso DESC, i.horaIngreso DESC";
+                break;
+            default: // 'hoy'
+                $fecha = date('Y-m-d');
+                $titulo = "Ingresos de Hoy";
+                $query = $baseQuery . " WHERE DATE(i.fechaIngreso) = :fecha
+                        ORDER BY i.horaIngreso DESC";
+                break;
+        }
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute(['fecha' => $fecha]);
+        $ingresos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return [
+            'ingresos' => $ingresos,
+            'titulo' => $titulo,
+            'total' => count($ingresos)
+        ];
+    }
 }
